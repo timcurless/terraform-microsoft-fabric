@@ -5,9 +5,9 @@ terraform {
       source  = "microsoft/fabric"
       version = "1.6.0"
     }
-    azuread = {
-      source  = "hashicorp/azuread"
-      version = "~> 2.40"
+    github = {
+      source  = "integrations/github"
+      version = "~> 5.0"
     }
   }
 }
@@ -18,8 +18,9 @@ provider "fabric" {
   preview    = true
 }
 
-provider "azuread" {
-  
+provider "github" {
+  owner = var.destination_org
+  token = var.gh_token
 }
 
 variable "workspace_display_name" {
@@ -38,6 +39,16 @@ variable "group_id" {
   default     = "30d11c0d-67f6-424c-bc01-4b784797c6ae"
 }
 
+variable "destination_org" {
+  description = "The name of the organization in Github that will contain the templated repo."
+  default     = "timcurless"
+}
+
+variable "gh_token" {
+  description = "Github token with permissions to create and delete repos."
+  sensitive   = true
+}
+
 data "fabric_capacity" "main" {
   display_name = var.capacity_name
 
@@ -47,6 +58,18 @@ data "fabric_capacity" "main" {
       error_message = "Fabric Capacity is not in Active state. Please check the Fabric Capacity status."
     }
   }
+}
+
+resource "github_repository" "gh_repo" {
+  name       = var.workspace_display_name
+  visibility = "public"
+  auto_init = true
+
+  # template {
+  #   repository = "fabric-template"
+  #   owner      = var.destination_org
+  #   include_all_branches = true
+  # }
 }
 
 resource "fabric_workspace" "main" {
@@ -65,6 +88,22 @@ resource "fabric_workspace_role_assignment" "owner" {
     id   = var.group_id
   }
   role = "Contributor"
+}
+
+resource "fabric_workspace_git" "github" {
+  workspace_id            = fabric_workspace.main.id
+  initialization_strategy = "PreferWorkspace"
+  git_provider_details = {
+    git_provider_type = "GitHub"
+    owner_name        = var.destination_org
+    repository_name   = github_repository.gh_repo.name
+    branch_name       = "main"
+    directory_name    = "/"
+  }
+  git_credentials = {
+    source        = "ConfiguredConnection"
+    connection_id = "1d7423b0-dd60-46ae-b436-8231b66153bb"
+  }
 }
 
 resource "fabric_lakehouse" "gold" {
