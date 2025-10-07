@@ -15,7 +15,7 @@ terraform {
 # Configure the Microsoft Fabric Terraform Provider
 provider "fabric" {
   # Configuration options
-  preview    = true
+  preview = true
 }
 
 provider "github" {
@@ -30,7 +30,7 @@ variable "workspace_display_name" {
 
 variable "capacity_name" {
   description = "The name of the capacity to use."
-  type = string
+  type        = string
 }
 
 variable "group_id" {
@@ -49,6 +49,12 @@ variable "gh_token" {
   sensitive   = true
 }
 
+variable "create_sql_database" {
+  description = "Whether to create the Fabric SQL Database resource."
+  type        = bool
+  default     = true
+}
+
 data "fabric_capacity" "main" {
   display_name = var.capacity_name
 
@@ -60,10 +66,14 @@ data "fabric_capacity" "main" {
   }
 }
 
+data "fabric_connection" "gh1" {
+  id = "1d7423b0-dd60-46ae-b436-8231b66153bb"
+}
+
 resource "github_repository" "gh_repo" {
   name       = var.workspace_display_name
   visibility = "public"
-  auto_init = true
+  auto_init  = true
 
   # template {
   #   repository = "fabric-template"
@@ -71,8 +81,6 @@ resource "github_repository" "gh_repo" {
   #   include_all_branches = true
   # }
 }
-
-
 
 resource "fabric_workspace" "main" {
   capacity_id  = data.fabric_capacity.main.id
@@ -85,7 +93,7 @@ resource "fabric_workspace" "main" {
 
 resource "fabric_workspace_role_assignment" "owner" {
   workspace_id = fabric_workspace.main.id
-  principal    = {
+  principal = {
     type = "Group"
     id   = var.group_id
   }
@@ -104,8 +112,8 @@ resource "fabric_workspace_git" "github" {
   }
   git_credentials = {
     source        = "ConfiguredConnection"
-    connection_id = "1d7423b0-dd60-46ae-b436-8231b66153bb"
-  } 
+    connection_id = data.fabric_connection.gh1.id
+  }
 }
 
 resource "fabric_lakehouse" "gold" {
@@ -127,6 +135,7 @@ resource "fabric_lakehouse" "bronze" {
 }
 
 resource "fabric_sql_database" "main" {
+  count = var.create_sql_database ? 1 : 0
   workspace_id = fabric_workspace.main.id
   display_name = "db_${var.workspace_display_name}_main"
   description  = "A SQL database for getting started with Microsoft Fabric. Created by Terraform."
@@ -153,5 +162,9 @@ output "workspace_name" {
 }
 
 output "sql_connection_string" {
-  value = fabric_sql_database.main.properties.connection_string
+  value = var.create_sql_database ? fabric_sql_database.main[0].properties.connection_string : null
+}
+
+output "gh_connection_data" {
+  value = data.fabric_connection.gh1
 }
