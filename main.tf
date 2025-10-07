@@ -72,6 +72,8 @@ resource "github_repository" "gh_repo" {
   # }
 }
 
+
+
 resource "fabric_workspace" "main" {
   capacity_id  = data.fabric_capacity.main.id
   display_name = "ws_${var.workspace_display_name}"
@@ -87,7 +89,7 @@ resource "fabric_workspace_role_assignment" "owner" {
     type = "Group"
     id   = var.group_id
   }
-  role = "Contributor"
+  role = "Admin"
 }
 
 resource "fabric_workspace_git" "github" {
@@ -103,7 +105,7 @@ resource "fabric_workspace_git" "github" {
   git_credentials = {
     source        = "ConfiguredConnection"
     connection_id = "1d7423b0-dd60-46ae-b436-8231b66153bb"
-  }
+  } 
 }
 
 resource "fabric_lakehouse" "gold" {
