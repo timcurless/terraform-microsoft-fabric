@@ -15,8 +15,7 @@ terraform {
 # Configure the Microsoft Fabric Terraform Provider
 provider "fabric" {
   # Configuration options
-  use_oidc = true
-  preview = true
+  preview    = true
 }
 
 provider "azuread" {
